@@ -67,7 +67,7 @@ class Blockchain {
             try {
                 const chainLength = self.chain.length
                 if(chainLength > 0){
-                block.previousBlockHash = self.chain[chainLength-1].hash
+                    block.previousBlockHash = self.chain[chainLength-1].hash
                 }
                 block.time = new Date().getTime().toString().slice(0, -3)
                 block.height = chainLength
@@ -128,10 +128,11 @@ class Blockchain {
                 const messageTime = parseInt(message.split(':')[1])
                 let currentTime = parseInt(new Date().getTime().toString().slice(0, -3))
                 if((currentTime - messageTime) < 300){
-                    bitcoinMessage.verify(message, address, signature)
-                    self._addBlock(new BlockClass.Block({address, message, signature, star}))
-                    .then(block => resolve(block))
-                    .catch(error => reject(error))
+                    if(bitcoinMessage.verify(message, address, signature)){
+                        self._addBlock(new BlockClass.Block({address, message, signature, star}))
+                        .then(block => resolve(block))
+                        .catch(error => reject(error))
+                    } else reject(Error('Invalid block'))
                 } else resolve(null)
             } catch(e){
                 reject(e)
@@ -214,11 +215,12 @@ class Blockchain {
                 const previousBlock = self.chain[i-1]
                 const currentBlock = self.chain[i]
 
-                currentBlock.validate().then(valid => {
-                    if(!valid) errorLog.push(`Block ${i} is invalid`)
-                }).catch(e => {
+                try {
+                    const isBlockValid = await currentBlock.validate()
+                    if(!isBlockValid) errorLog.push(`Block ${i} is invalid`)
+                } catch(e){
                     errorLog.push(`Block ${i} failed validation ${e}`)
-                })
+                }
 
                 if(previousBlock.hash !== currentBlock.previousBlockHash)
                     errorLog.push(`Block ${i} breaks the chain`)
